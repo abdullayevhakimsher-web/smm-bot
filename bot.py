@@ -2,7 +2,7 @@ import asyncio
 import logging
 import os
 
-from aiohttp import web
+from aiohttp import web, TCPConnector
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
@@ -25,6 +25,40 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+async def wait_for_telegram_connection(max_retries=5):
+    """Retry connection to Telegram with exponential backoff"""
+    connector = TCPConnector(
+        limit=100,
+        limit_per_host=30,
+        ttl_dns_cache=300,
+        enable_cleanup_closed=True,
+    )
+    
+    bot = Bot(
+        token=BOT_TOKEN,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+    )
+    
+    for attempt in range(max_retries):
+        try:
+            logger.info(f"Telegram API ga ulanish sinov #{attempt + 1}...")
+            user = await bot.get_me()
+            logger.info(f"✅ Telegram API bilan ulanish muvaffaqiyatli: {user.first_name}")
+            return bot
+        except Exception as e:
+            wait_time = 2 ** attempt  # Exponential backoff: 1, 2, 4, 8, 16 seconds
+            logger.warning(f"❌ Telegram API bilan ulanib bo'lmadi: {e}")
+            
+            if attempt < max_retries - 1:
+                logger.info(f"⏳ {wait_time} soniyadan keyin qayta urinish...")
+                await asyncio.sleep(wait_time)
+            else:
+                logger.error("❌ Maksimal urinishlar tugadi. Iltimos, internet ulanishingizni tekshiring.")
+                raise
+    
+    return bot
+
+
 async def handle(request):
     return web.Response(text="SUPER SMM BOT muvaffaqiyatli ishlamoqda!")
 
@@ -43,10 +77,9 @@ async def main():
     await site.start()
     logger.info(f"Render veb-serveri {port}-portda ishga tushdi.")
 
-    bot = Bot(
-        token=BOT_TOKEN,
-        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
-    )
+    # Telegram API ga ulana olguncha kutish
+    bot = await wait_for_telegram_connection()
+    
     dp = Dispatcher(storage=MemoryStorage())
 
     dp.include_router(panel.router)
