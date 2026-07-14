@@ -117,9 +117,11 @@ async def service_selected(callback: CallbackQuery, state: FSMContext):
         max_qty=svc["max_qty"],
     )
 
+    description = svc["description"] or "Tavsif yo'q"
+
     await callback.message.edit_text(
         f"📋 <b>{svc['name']}</b>\n\n"
-        f"📝 {svc['description'] or 'Tavsif yo\'q'}\n\n"
+        f"📝 {description}\n\n"
         f"💰 <b>Narx:</b> {svc['price']:,} so'm / birlik\n"
         f"📊 <b>Min/Max:</b> {svc['min_qty']} — {svc['max_qty']}\n\n"
         f"🔢 Miqdorni kiriting (raqam):",
