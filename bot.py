@@ -63,6 +63,33 @@ async def handle(request):
     return web.Response(text="SUPER SMM BOT muvaffaqiyatli ishlamoqda!")
 
 
+async def create_render_site(runner, default_port=10000, max_attempts=5):
+    raw_port = os.environ.get("PORT")
+    base_port = int(raw_port) if raw_port is not None else default_port
+    allow_fallback = raw_port is None
+
+    for offset in range(max_attempts if allow_fallback else 1):
+        port = base_port + offset
+        site = web.TCPSite(runner, "0.0.0.0", port)
+        try:
+            await site.start()
+            logger.info(f"Render veb-serveri {port}-portda ishga tushdi.")
+            return site, port
+        except OSError as e:
+            if e.errno == 10048:
+                if allow_fallback:
+                    logger.warning(f"Port {port} band; {port + 1} portga o'tish sinovi...")
+                    continue
+                raise RuntimeError(
+                    f"Port {port} band. Agar PORT muhit o'zgaruvchisi o'rnatilgan bo'lsa, boshqa portni tanlang."
+                ) from e
+            raise
+
+    raise RuntimeError(
+        f"Portlar {base_port}-{base_port + max_attempts - 1} band. Iltimos, birini bo'shating yoki .env faylida boshqa PORT kiriting."
+    )
+
+
 async def main():
     await db.init_db()
     logger.info("✅ Ma'lumotlar bazasi tayyor.")
@@ -72,10 +99,7 @@ async def main():
     runner = web.AppRunner(app)
     await runner.setup()
 
-    port = int(os.environ.get("PORT", 10000))
-    site = web.TCPSite(runner, "0.0.0.0", port)
-    await site.start()
-    logger.info(f"Render veb-serveri {port}-portda ishga tushdi.")
+    site, port = await create_render_site(runner)
 
     # Telegram API ga ulana olguncha kutish
     bot = await wait_for_telegram_connection()
