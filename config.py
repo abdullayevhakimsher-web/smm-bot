@@ -11,7 +11,7 @@ BOT_TOKEN: str = raw_token
 
 raw_admin = os.getenv("ADMIN_ID", "").strip()
 if raw_admin in {"", "YOUR_ADMIN_ID_HERE"}:
-    raw_admin = "8830513363"
+    raw_admin = "8811271169"
 try:
     ADMIN_ID: int = int(raw_admin)
 except ValueError:
